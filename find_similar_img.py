@@ -21,7 +21,7 @@ from sklearn.decomposition import PCA
 batch_size=10
 epochs=50
 TRAIN_MODEL=True
-pca_comp=50
+pca_comp=150
 n_neighbors=15
 metric='euclidean'#'euclidean' #'cosine'
 
@@ -36,7 +36,7 @@ for root, dirs, files in os.walk(output_dir):
 
 
 if TRAIN_MODEL:
-    
+    # для тренировочного датасета используется augmentation
     train_datagen = ImageDataGenerator(
             rescale=1./255,
             shear_range=0.3,
@@ -67,7 +67,7 @@ if TRAIN_MODEL:
 
     opt = SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
 # компилируем
-    model.compile(optimizer=opt,
+    model.compile(optimizer='adam',
                   loss='binary_crossentropy',
                   metrics=['accuracy'])
 # обучаем
@@ -92,9 +92,8 @@ feat_extractor = Model(inputs=model.input, outputs=model.get_layer("fc_layer").o
 # 
 listing = os.listdir(input_dir) 
 
-# собираем выходы с предполеднего слоя в массив фич
 print("Apply cnn_model to extract features")
-
+# собираем выходы с предполеднего слоя в массив фич
 features = []
 for file in listing:
     img = image.load_img(input_dir+ '\\' + file, target_size=(32, 32))
@@ -102,21 +101,22 @@ for file in listing:
     x=x[ np.newaxis,:,:,:]
     feat = feat_extractor.predict(x)[0]
     features.append(feat)
-    
+# уменьшим размерность фич
 print("Apply PCA from dim="+str(len(feat))+' to dim='+str(pca_comp))
 features = np.array(features)
 pca = PCA(n_components=pca_comp)
 pca.fit(features)
 pca_features = pca.transform(features)
-#
+#создаем классификатор для поиска ближайших точек (изображений) в пространстве фич
 print("Apply kNN with "+'metrics='+metric+' and neighbors='+str(n_neighbors))
 knn = NearestNeighbors(n_neighbors=n_neighbors,metric=metric, algorithm='brute').fit(pca_features)
 # определяем центр в пространстве фич, относительно которого будут нахдиться похожие изображения
 pca_features_centroid = np.mean(pca_features, axis = 0)
-
+# находим ближейшие от центра
 distances, indices = knn.kneighbors(pca_features_centroid.reshape(-1,pca_comp))
 print("Copying files to .\out")
 thumbs = []
+# копируем в ./out 
 for i in indices[0]:
     full_file_name = os.path.join(input_dir, listing[i])
     img = image.load_img(full_file_name)

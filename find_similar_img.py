@@ -7,14 +7,10 @@ from matplotlib.pyplot import imshow
 from keras.preprocessing import image
 from keras.preprocessing.image import ImageDataGenerator
 from sklearn.neighbors import NearestNeighbors
-
-from keras.utils.np_utils import to_categorical
 from cnn_model import cnn_model_fn
 from keras.optimizers import SGD
 
 from keras.models import Sequential, load_model, Model
-from keras.layers import Conv2D, MaxPooling2D,ZeroPadding2D
-from keras.layers import Activation, Dropout, Flatten, Dense
 from sklearn.decomposition import PCA
 
 

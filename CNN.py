@@ -1,68 +1,79 @@
 import numpy as np
 import os
+from keras.callbacks import EarlyStopping
 from keras.preprocessing.image import ImageDataGenerator
-from keras.utils.np_utils import to_categorical
 from keras.optimizers import SGD
-from keras.models import load_model
-from keras.models import Sequential
+from keras.models import Sequential , Model, load_model
 from cnn_model import cnn_model_fn
+from keras.layers import Dense
 
-
-PRETRAINED_MODEL=False
-batch_size=30
+TRAIN_MODEL=True
+batch_size=50
 epochs=50
 
-if PRETRAINED_MODEL:
-    # загружаем модель, обучена на CIFAR10 до точности 0.8
-    base_model=load_model('saved_keras_model') 
-    # отключаем верхние слои отвечающие за классификацию
-    base_model.layers.pop()
-    base_model.layers.pop()
-    #base_model.layers.pop()
-    # запрещаем менять коэфиценты у сверточных слоев
-    for layer in base_model.layers:
-        layer.trainable = False
-    # создаем новую модель 
-    model = Sequential()
-    # на основе сверточной части уже обученной
-    model.add(base_model)
-    # добавляем обучаемые fully connected слои для классификации
-    model.add(Dense(512, activation='relu'))
-    model.add(Dense(1, activation='sigmoid'))
-else:
+
+if TRAIN_MODEL:
+# подготавливаем тренировочный и валидационный датасеты
+# для тренировочного датасета используется augmentation
+    train_datagen = ImageDataGenerator(
+            rescale=1./255,
+            shear_range=0.4,
+            zoom_range=0.4,
+            horizontal_flip=True)
+    #ImageDataGenerator удобен т.к. автоатически сопоставляет метки классов 
+    # для данных с учетом структуры каталогов
+    test_datagen = ImageDataGenerator(rescale=1./255)
+    
+    train_generator = train_datagen.flow_from_directory(
+            './data/train',  
+            target_size=(32, 32), 
+            batch_size=batch_size,
+            class_mode='binary')  
+    
+    validation_generator = test_datagen.flow_from_directory(
+            './data/val',
+            target_size=(32, 32),
+            batch_size=batch_size,
+            class_mode='binary')
+
+    print("Build cnn_model")
     model=cnn_model_fn()
-
-
-opt = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
-
-model.compile(optimizer=opt,
+    model.compile(optimizer='rmsprop',
               loss='binary_crossentropy',
               metrics=['accuracy'])
 
-train_datagen = ImageDataGenerator(
-        rescale=1./255,
-        shear_range=0.3,
-        zoom_range=0.3,
-        horizontal_flip=True)
-
-test_datagen = ImageDataGenerator(rescale=1./255)
+    print("Train cnn_model")
+    
+    # обучение на 800 изображениях и валидация на 200
+    model_info=model.fit_generator(
+            train_generator,
+            steps_per_epoch=800 // batch_size,
+            epochs=epochs,
+            validation_data=validation_generator,
+            validation_steps=200 )
+    #model.save_weights("cnn_model_w.h5")
+    #model.save('cnn_model')
+else:
+    print("Load pre-trained cnn_model")
+    model=load_model('cnn_model') 
+    
+print("Evaluate cnn_model")
+# для проверки качества загружаем тестовые и валидационные данные целиком, 800 и 200 соответственно
+train_datagen = ImageDataGenerator(rescale=1./255)
 
 train_generator = train_datagen.flow_from_directory(
-        'C:/ML/samsung/data/train',  
+        './data/train',  
         target_size=(32, 32), 
-        batch_size=batch_size,
         class_mode='binary')  
+scores1 = model.evaluate_generator(train_generator,800) 
+print("Train accuracy = ", scores1[1])
+    
+test_datagen = ImageDataGenerator(rescale=1./255)
 
 validation_generator = test_datagen.flow_from_directory(
-        'C:/ML/samsung/data/val',
+        './data/val',
         target_size=(32, 32),
-        batch_size=batch_size,
         class_mode='binary')
-    
-model.fit_generator(
-        train_generator,
-        steps_per_epoch=800 // batch_size,
-        epochs=epochs,
-        validation_data=validation_generator,
-        validation_steps=200 // batch_size)
+scores2 = model.evaluate_generator(validation_generator,200) 
+print("Validation accuracy = ", scores2[1])
 

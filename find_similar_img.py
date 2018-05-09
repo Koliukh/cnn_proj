@@ -17,9 +17,10 @@ from keras.layers import Conv2D, MaxPooling2D,ZeroPadding2D
 from keras.layers import Activation, Dropout, Flatten, Dense
 from sklearn.decomposition import PCA
 
+
 batch_size=10
 epochs=50
-TRAIN_MODEL=False
+TRAIN_MODEL=True
 pca_comp=50
 n_neighbors=15
 metric='euclidean'#'euclidean' #'cosine'
@@ -41,6 +42,7 @@ if TRAIN_MODEL:
             shear_range=0.3,
             zoom_range=0.3,
             horizontal_flip=True)
+    train_datagen = ImageDataGenerator(rescale=1./255)
 
     test_datagen = ImageDataGenerator(rescale=1./255)
 
@@ -59,11 +61,13 @@ if TRAIN_MODEL:
     
 
 # строим модель
+    print("Build cnn_model")
+
     model=cnn_model_fn()
 
-    opt = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+    opt = SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
 # компилируем
-    model.compile(optimizer='adam',
+    model.compile(optimizer=opt,
                   loss='binary_crossentropy',
                   metrics=['accuracy'])
 # обучаем
@@ -76,18 +80,17 @@ if TRAIN_MODEL:
         
     print("Train cnn_model")
 
-    model.save_weights("cnn_model_w.h5")
-    model.save('cnn_model')
+    model.save_weights("cnn_model1_w.h5")
+    model.save('cnn_model1')
 else: # грузим сохраненную
-    print("Load cnn_model")
-    model=load_model('cnn_model') 
+    print("Load pre-trined cnn_model")
+    model=load_model('cnn_model1') 
 
 ## берем выходы модели перед последним слоем , они будут содержать фичи
 feat_extractor = Model(inputs=model.input, outputs=model.get_layer("fc_layer").output)
 
 # 
 listing = os.listdir(input_dir) 
-num_samples=len(listing)
 
 # собираем выходы с предполеднего слоя в массив фич
 print("Apply cnn_model to extract features")
@@ -105,15 +108,22 @@ features = np.array(features)
 pca = PCA(n_components=pca_comp)
 pca.fit(features)
 pca_features = pca.transform(features)
-
+#
 print("Apply kNN with "+'metrics='+metric+' and neighbors='+str(n_neighbors))
 knn = NearestNeighbors(n_neighbors=n_neighbors,metric=metric, algorithm='brute').fit(pca_features)
+# определяем центр в пространстве фич, относительно которого будут нахдиться похожие изображения
 pca_features_centroid = np.mean(pca_features, axis = 0)
 
 distances, indices = knn.kneighbors(pca_features_centroid.reshape(-1,pca_comp))
 print("Copying files to .\out")
+thumbs = []
 for i in indices[0]:
     full_file_name = os.path.join(input_dir, listing[i])
-    print(full_file_name)
+    img = image.load_img(full_file_name)
+    thumbs.append(img)
     if (os.path.isfile(full_file_name)):
         shutil.copy(full_file_name, output_dir)
+concat_image = np.concatenate([np.asarray(t) for t in thumbs], axis=1)
+matplotlib.pyplot.figure(figsize = (16,12))
+imshow(concat_image)
+matplotlib.pyplot.title("similar images")

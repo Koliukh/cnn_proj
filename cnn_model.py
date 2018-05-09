@@ -10,7 +10,6 @@ def cnn_model_fn():
     model.add(Conv2D(16, (3, 3), activation='relu', name='conv_layer2'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Conv2D(32, (3, 3), activation='relu', name='conv_layer3'))
-   # model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Conv2D(32, (3, 3), activation='relu', name='conv_layer4'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Flatten())

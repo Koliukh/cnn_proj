@@ -18,15 +18,17 @@ from keras.layers import Activation, Dropout, Flatten, Dense
 from sklearn.decomposition import PCA
 
 
-batch_size=10
+batch_size=50
 epochs=50
 TRAIN_MODEL=True
-pca_comp=150
+pca_comp=300
 n_neighbors=15
 metric='euclidean'#'euclidean' #'cosine'
 
 input_dir = ".\heap"
 output_dir = ".\out"
+os.makedirs(output_dir, exist_ok=True)
+
 print("Clear output dir")
 for root, dirs, files in os.walk(output_dir):
     for f in files:
@@ -67,7 +69,7 @@ if TRAIN_MODEL:
 
     opt = SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
 # компилируем
-    model.compile(optimizer='adam',
+    model.compile(optimizer=opt,
                   loss='binary_crossentropy',
                   metrics=['accuracy'])
 # обучаем

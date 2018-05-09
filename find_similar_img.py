@@ -50,10 +50,10 @@ if TRAIN_MODEL:
 
 # подготавливаем тренировочный и валидационный датасеты
     train_generator = train_datagen.flow_from_directory(
-            './data/train',  # this is the target directory
-            target_size=(32, 32),  # all images will be resized to 150x150
+            './data/train',  
+            target_size=(32, 32),  
             batch_size=batch_size,
-            class_mode='binary')  # since we use binary_crossentropy loss, we need binary labels
+            class_mode='binary') 
 
     validation_generator = test_datagen.flow_from_directory(
             './data/val',
